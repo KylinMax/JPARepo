@@ -1,0 +1,2 @@
+# JPARepo
+JPA study project
