@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<persistence version="2.0"
+	xmlns="http://java.sun.com/xml/ns/persistence" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://java.sun.com/xml/ns/persistence http://java.sun.com/xml/ns/persistence/persistence_2_0.xsd">
+	<persistence-unit name="JPAStudy" transaction-type="RESOURCE_LOCAL">
+		<!-- 配置用什么ORM 产品作为jpa的实现 1.实际上配置的是javax.persistence.spi.PersistenceProvider的实现类 
+			2.如果项目只有一个jap的实现，也可以不用配置 -->
+		<provider>org.hibernate.ejb.HibernatePersistence</provider>
+		<class>com.kylin.jpa.entities.PkGenerator</class>
+
+		<class>com.kylin.jpa.entities.Person</class>
+		<class>com.kylin.jpa.entities.Order</class>
+
+		<class>com.kylin.jpa.entities.School</class>
+		<class>com.kylin.jpa.entities.Student</class>
+
+		<class>com.kylin.jpa.entities.Manager</class>
+		<class>com.kylin.jpa.entities.Department</class>
+		<properties>
+			<!-- 配置数据库的连接信息 -->
+			<property name="javax.persistence.jdbc.driver" value="com.mysql.jdbc.Driver" />
+			<property name="javax.persistence.jdbc.url" value="jdbc:mysql:///jpa" />
+			<property name="javax.persistence.jdbc.user" value="root" />
+			<property name="javax.persistence.jdbc.password" value="123456" />
+
+			<!-- 配置jpa实现产品的基本属性，也就是 hibernate的基本属性 -->
+			<property name="hibernate.format_sql" value="true" />
+			<property name="hibernate.show_sql" value="true" />
+			<property name="hibernate.hbm2ddl.auto" value="update" />
+		</properties>
+	</persistence-unit>
+</persistence>
