@@ -3,35 +3,39 @@ package com.kylin.jap.Test;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.EntityTransaction;
 import javax.persistence.Persistence;
+import javax.persistence.Query;
 
+import org.hibernate.jpa.QueryHints;
 import org.junit.After;
 import org.junit.Before;
 
+import com.kylin.jpa.entities.Category;
 import com.kylin.jpa.entities.Department;
+import com.kylin.jpa.entities.Item;
 import com.kylin.jpa.entities.Manager;
 import com.kylin.jpa.entities.Order;
 import com.kylin.jpa.entities.Person;
 import com.kylin.jpa.entities.School;
 import com.kylin.jpa.entities.Student;
-import com.sun.org.apache.xalan.internal.xsltc.dom.SAXImpl.NamespaceWildcardIterator;
 
 public class Test {
-	// 1.´´½¨EntityManagerFactory
+	// 1.ï¿½ï¿½ï¿½ï¿½EntityManagerFactory
 	EntityManagerFactory entityManagerFactory;
-	// 2.´´½¨EntityManager
+	// 2.ï¿½ï¿½ï¿½ï¿½EntityManager
 	EntityManager entityManager;
-	// 3.¿ªÆôÊÂÎñ
+	// 3.ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 	EntityTransaction transaction;
 
 	@Before
 	public void init() {
-		// persistence.xmlÎÄ¼şÖĞµÄ<persistence-unit>±êÇ©µÄÖµ
+		// persistence.xmlï¿½Ä¼ï¿½ï¿½Ğµï¿½<persistence-unit>ï¿½ï¿½Ç©ï¿½ï¿½Öµ
 		String persistenceUnitName = "JPAStudy";
 		entityManagerFactory = Persistence.createEntityManagerFactory(persistenceUnitName);
 		entityManager = entityManagerFactory.createEntityManager();
@@ -41,34 +45,187 @@ public class Test {
 
 	@After
 	public void destroy() {
-		// 5.Ìá½»ÊÂÎñ
+		// 5.ï¿½á½»ï¿½ï¿½ï¿½ï¿½
 		transaction.commit();
-		// 6.¹Ø±ÕEntityManager
+		// 6.ï¿½Ø±ï¿½EntityManager
 		entityManager.close();
-		// 7.¹Ø±ÕEntityManagerFactory
+		// 7.ï¿½Ø±ï¿½EntityManagerFactory
 		entityManagerFactory.close();
+	}
+	
+	
+	/*******************JPQL**************************************/
+	
+	@org.junit.Test
+	public void testUpdate(){
+		String jpql = "update Student s set s.name = ? where s.id = ?";
+		Query query = entityManager.createQuery(jpql).setParameter(1, "kylinxiang").setParameter(2, 1);
+		query.executeUpdate();
+	}
+	
+	@org.junit.Test
+	public void testSubQuery(){
+		String jpql = "select s from Student s where s.school = (select sc from School sc where sc.schoolName = ?)";
+		Query query = entityManager.createQuery(jpql);
+		query.setParameter(1, "singhua");
+		List<Student> students = query.getResultList();
+		for(Student student : students){
+			System.out.println(student);
+		}
+	}
+	
+	@org.junit.Test
+	public void testLeftOuterJoinFetch(){
+		//ä¸ä½¿ç”¨left outer join fetch
+		//æŸ¥è¯¢ä¸¤æ¬¡ï¼Œ ä¸€æ¬¡æŸ¥è¯¢orderï¼Œ ä¸€æ¬¡æŸ¥æ‘ perosn
+		
+//		String jpql = "select o from Order o where o.id = 1";
+		
+		//ä½¿ç”¨left outer join fetch æŸ¥è¯¢ åªæŸ¥è¯¢ä¸€æ¬¡
+		String jpql = "select o from Order o left outer join fetch o.person where o.id = 1";
+
+		Order order = (Order) entityManager.createQuery(jpql).getSingleResult();
+		System.out.println(order.getOrderName());
+		System.out.println(order.getPerson());
+		
+		//è‹¥åŠ fetch å°†ä¼šè¿”å›æŸ¥è¯¢ç»“æœçš„æ•°ç»„çš„list
+		String jpql2 = "select o from Order o left outer join o.person where o.id = 1";
+		List<Object[]> results = entityManager.createQuery(jpql2).getResultList();
+		System.out.println(results);
+	}
+	
+	//æŸ¥è¯¢orderæ•°é‡å¤§äº2çš„é‚£äº›Person
+	@org.junit.Test
+	public void testOrderBy(){
+		String jpql = "select o.person from Order o group by o.person having count(o.id) >=2";
+		List<Person> persons = entityManager.createQuery(jpql).getResultList();
+		System.out.println(persons);
+	}
+	
+	//å¯ç”¨hibernateæŸ¥è¯¢ç¼“å­˜
+	@org.junit.Test
+	public void testQueryCache(){
+		String jpql = "select s from Student s";
+		Query query = entityManager.createQuery(jpql).setHint(QueryHints.HINT_CACHEABLE,true);
+		
+		List<Student> students =query.getResultList();
+		System.out.println(students.size());
+		
+		//å†æ¬¡æŸ¥è¯¢
+		query = entityManager.createQuery(jpql).setHint(QueryHints.HINT_CACHEABLE, true);
+		students =query.getResultList();
+		System.out.println(students.size());
+	}
+	
+	//createNativeQueryé€‚ç”¨äºæœ¬åœ°sql
+	@org.junit.Test
+	public void testNativeQuery(){
+		 String sql = "select age from student";
+		 List<Integer> integers = entityManager.createNativeQuery(sql).getResultList();
+		 for (Integer integer : integers) {
+			System.out.println(integer);
+		}
+	}
+	
+	//createNamedQueryé€‚ç”¨äºå®ä½“ç±»å‰ä½¿ç”¨@NamedQueryæ ‡è®°çš„æŸ¥è¯¢è¯­å¥
+	@org.junit.Test
+	public void testNamedQuery(){
+		List<Student> students = entityManager.createNamedQuery("testNamedQuery").getResultList();
+		System.out.println(students);
+	}
+	
+	//é»˜è®¤æƒ…å†µä¸‹ï¼Œ è‹¥åªæŸ¥è¯¢éƒ¨åˆ†å±æ€§ï¼Œ åˆ™è¿”å›Object[]ç±»å‹çš„ç»“æœï¼Œæˆ–è€…Object[]ç±»å‹çš„List.
+	//ä¹Ÿå¯ä»¥åœ¨å®ä½“ç±»ä¸­åˆ›å»ºå¯¹åº”çš„æ„é€ å™¨ï¼Œç„¶ååœ¨JPQLè¯­å¥ä¸­åˆ©ç”¨å¯¹åº”çš„æ„é€ å™¨è¿”å›å®ä½“ç±»çš„å¯¹è±¡.
+	@org.junit.Test
+	public void testAttributeQuery(){
+		String jpql ="select new Student(s.name, s.age) from Student s where s.age > ?";
+		List<Student> result = entityManager.createQuery(jpql).setParameter(1, 1).getResultList();
+		System.out.println(result);
+	}
+	
+	
+	
+	@org.junit.Test
+	public void testHelloJPQL(){
+		//Studentä¸ºç±»åï¼Œé¦–å­—æ¯å¤§å†™
+		String jpql = "From Student s where s.age>?";
+		Query query = entityManager.createQuery(jpql);
+		
+		//å ä½ç¬¦çš„ç´¢å¼•ä»1å¼€å§‹
+		query.setParameter(1, 1);
+		List<Student> students = query.getResultList();
+		Iterator<Student> iterator = students.iterator();
+		while(iterator.hasNext()){
+			System.out.println(iterator.next().toString2());
+		}
+		
+	}
+	/********************many2many*********************************/
+	
+	
+	//å¯¹äºå…³è”çš„é›†åˆå¯¹è±¡ï¼Œé»˜è®¤ä½¿ç”¨æ‡’åŠ è½½çš„ç­–ç•¥
+	//ä¸ç®¡æ˜¯ä½¿ç”¨å“ªä¸€æ–¹è·å–ï¼Œå‘é€çš„sqlè¯­å¥ç›¸åŒ
+	@org.junit.Test
+	public void testManyToManyFind(){
+		Item item = entityManager.find(Item.class, 1);
+		System.out.println(item.getItemName());
+		System.out.println(item.getCategories().size());
+	}
+	
+	@org.junit.Test
+	public void testManyToManyPersit(){
+		Item item1 = new Item();
+		item1.setItemName("i1");
+		
+		Item item2 = new Item();
+		item2.setItemName("i2");
+		
+		Category category1 = new Category();
+		category1.setCatagoryName("c1");
+		
+		Category category2 = new Category();
+		category2.setCatagoryName("c2");
+		
+		//è®¾ç½®å…³è”å…³ç³»
+		item1.getCategories().add(category1);
+		item1.getCategories().add(category2);
+		
+		item2.getCategories().add(category1);
+		item2.getCategories().add(category2);
+		
+		category1.getItems().add(item1);
+		category1.getItems().add(item2);
+		
+		category2.getItems().add(item1);
+		category2.getItems().add(item2);
+		
+		//ä¿å­˜
+		entityManager.persist(item1);
+		entityManager.persist(item2);
+		entityManager.persist(category1);
+		entityManager.persist(category2);
 	}
 
 	/******************** one2one ********************************/
 
-	// Ä¬ÈÏÇé¿öÏÂ£¬Èô»ñÈ¡²»Î¬»¤¹ØÁª¹ØÏµµÄÒ»·½£¬Ôò»áÍ¨¹ı×óÍâÁ¬½Ó»ñÈ¡¹ØÁª¶ÔÏó
-	//¿ÉÒÔÍ¨¹ı@OneToOneµÄfetchÊôĞÔÀ´ĞŞ¸Ä¼ÓÃÜ²ßÂÔ£¬µ«ÒÀÈ»»áÔÙ·¢ËÍSQLÓï¾äÀ´³õÊ¼»¯Æä¹ØÁªµÄ¶ÔÏó
-	// ËµÃ÷ÔÚ²»Î¬»¤¹ØÁª¹ØÏµµÄÒ»·½£¬ ²»½¨ÒéĞŞ¸ÄfetchÊôĞÔ
+	// Ä¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Â£ï¿½ï¿½ï¿½ï¿½ï¿½È¡ï¿½ï¿½Î¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ïµï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í¨ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ó»ï¿½È¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+	//ï¿½ï¿½ï¿½ï¿½Í¨ï¿½ï¿½@OneToOneï¿½ï¿½fetchï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ş¸Ä¼ï¿½ï¿½Ü²ï¿½ï¿½Ô£ï¿½ï¿½ï¿½ï¿½ï¿½È»ï¿½ï¿½ï¿½Ù·ï¿½ï¿½ï¿½SQLï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¶ï¿½ï¿½ï¿½
+	// Ëµï¿½ï¿½ï¿½Ú²ï¿½Î¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ïµï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ş¸ï¿½fetchï¿½ï¿½ï¿½ï¿½
 	@org.junit.Test
 	public void testOne2OneFind2() {
 		Manager manager = entityManager.find(Manager.class, 1);
 		System.out.println(manager.getDepartment().getClass().getName());
 	}
 
-	// Ä¬ÈÏÇé¿öÏÂ£¬Èô»ñÈ¡Î¬»¤¹ØÁª¹ØÏµµÄÒ»·½£¬Ôò»áÍ¨¹ı×óÍâÁ¬½Ó»ñÈ¡¹ØÁª¶ÔÏó
-	// ¿ÉÒÔÍ¨¹ıOneToOneµÄfetchÊôĞÔĞŞ¸Ä¼ÓÔØ·½Ê½
+	// Ä¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Â£ï¿½ï¿½ï¿½ï¿½ï¿½È¡Î¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ïµï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í¨ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ó»ï¿½È¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+	// ï¿½ï¿½ï¿½ï¿½Í¨ï¿½ï¿½OneToOneï¿½ï¿½fetchï¿½ï¿½ï¿½ï¿½ï¿½Ş¸Ä¼ï¿½ï¿½Ø·ï¿½Ê½
 	@org.junit.Test
 	public void testOne2OneFind() {
 		Department department = entityManager.find(Department.class, 1);
 		System.out.println(department.getManager().getClass().getName());
 	}
 
-	// Ë«Ïòone2oneµÄ¹ØÁª¹ØÏµ£¬½¨ÒéÏÈ±£´æ²»Î¬»¤¹ØÁª¹ØÏµµÄÒ»·½£¬ ÕâÑù²»»á¶à³öupdateÓï¾ä
+	// Ë«ï¿½ï¿½one2oneï¿½Ä¹ï¿½ï¿½ï¿½ï¿½ï¿½Ïµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È±ï¿½ï¿½æ²»Î¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ïµï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½updateï¿½ï¿½ï¿½
 	@org.junit.Test
 	public void testOne2OnePersist() {
 		Manager manager = new Manager();
@@ -76,21 +233,21 @@ public class Test {
 		Department department = new Department();
 		department.setDepartmentName("finicial");
 
-		// ÉèÖÃ¹ØÁªÊôĞÔ
+		// ï¿½ï¿½ï¿½Ã¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 		manager.setDepartment(department);
 		department.setManager(manager);
 
-		// Ö´ĞĞ²åÈë²Ù×÷
+		// Ö´ï¿½Ğ²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 		entityManager.persist(manager);
 		entityManager.persist(department);
 
 	}
 
-	/******************** Ë«Ïò1¶Ô¶à *********************************/
-	// ÈôÊÇË«Ïò1¶Ô¶àµÄ¹ØÁª¹ØÏµ£¬ Ö´ĞĞ±£´æÊ±
-	// ÈôÏÈ±£´ænµÄÒ»¶Ë£¬ ÔÚ±£´æ1µÄÒ»¶Ë£¬ Ä¬ÈÏÇé¿öÏÂ£¬ »á¶à³önµ÷UpdateÓï¾ä
-	// ÈôÏÈ±¨´æ1µÄÒ»¶Ë£¬ ÔÙ±£´æ¶àµÄÒ»¶Ë£¬ Ôò»á¶à³önµ÷UpdateÓï¾ä
-	// ÔÚ½øĞĞË«Ïò1¶Ô¶à¹ØÁª¹ØÏµÊ±£¬ ½¨ÒéÊ¹ÓÃ¶àµÄÒ»·½À´Î¬»¤¹ØÁª¹ØÏµ£¬ ¶ø1µÄÒ»·½²»Î¬»¤¹ØÁª¹ØÏµ£¬ÕâÑù»áÓĞĞ§¼õÉÙsqlÓï¾ä
+	/******************** Ë«ï¿½ï¿½1ï¿½Ô¶ï¿½ *********************************/
+	// ï¿½ï¿½ï¿½ï¿½Ë«ï¿½ï¿½1ï¿½Ô¶ï¿½Ä¹ï¿½ï¿½ï¿½ï¿½ï¿½Ïµï¿½ï¿½ Ö´ï¿½Ğ±ï¿½ï¿½ï¿½Ê±
+	// ï¿½ï¿½ï¿½È±ï¿½ï¿½ï¿½nï¿½ï¿½Ò»ï¿½Ë£ï¿½ ï¿½Ú±ï¿½ï¿½ï¿½1ï¿½ï¿½Ò»ï¿½Ë£ï¿½ Ä¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Â£ï¿½ ï¿½ï¿½ï¿½ï¿½nï¿½ï¿½Updateï¿½ï¿½ï¿½
+	// ï¿½ï¿½ï¿½È±ï¿½ï¿½ï¿½1ï¿½ï¿½Ò»ï¿½Ë£ï¿½ ï¿½Ù±ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½Ë£ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½nï¿½ï¿½Updateï¿½ï¿½ï¿½
+	// ï¿½Ú½ï¿½ï¿½ï¿½Ë«ï¿½ï¿½1ï¿½Ô¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ÏµÊ±ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ê¹ï¿½Ã¶ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½Î¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ïµï¿½ï¿½ ï¿½ï¿½1ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½Î¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ïµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ğ§ï¿½ï¿½ï¿½ï¿½sqlï¿½ï¿½ï¿½
 
 	@org.junit.Test
 	public void testBiDirectionalOneToMany() {
@@ -116,8 +273,8 @@ public class Test {
 		school.getStudents().iterator().next().setName("sb");
 	}
 
-	// Ä¬ÈÏÇé¿öÏÂ£¬ ÈôÉ¾³ı1µÄÒ»¶Ë£¬ Ôò»áÏÈ°Ñ¹ØÁªµÄnµÄÒ»¶ËÖÃ¿Õ
-	// ¿ÉÒÔÍ¨¹ı@OneToManyµÄcascadeÊôĞÔÀ´ĞŞ¸ÄÄ¬ÈÏµÄÉ¾³ı²ßÂÔ¡£
+	// Ä¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Â£ï¿½ ï¿½ï¿½É¾ï¿½ï¿½1ï¿½ï¿½Ò»ï¿½Ë£ï¿½ ï¿½ï¿½ï¿½ï¿½È°Ñ¹ï¿½ï¿½ï¿½ï¿½ï¿½nï¿½ï¿½Ò»ï¿½ï¿½ï¿½Ã¿ï¿½
+	// ï¿½ï¿½ï¿½ï¿½Í¨ï¿½ï¿½@OneToManyï¿½ï¿½cascadeï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ş¸ï¿½Ä¬ï¿½Ïµï¿½É¾ï¿½ï¿½ï¿½ï¿½ï¿½Ô¡ï¿½
 	@org.junit.Test
 	public void testOneToManyRemove() {
 		School school = entityManager.find(School.class, 2);
@@ -125,8 +282,8 @@ public class Test {
 		entityManager.remove(school);
 	}
 
-	// Ä¬ÈÏ¶Ô¹ØÁª¶àµÄÒ»·½Ê¹ÓÃÀÁ¼ÓÔØµÄ¼ÓÔØ²ßÂÔ
-	// ¿ÉÒÔÊ¹ÓÃ@OneToManyµÄfetchÊôĞÔÀ´ĞŞ¸ÄÄ¬ÈÏµÄ¼ÓÔØ²ßÂÔ
+	// Ä¬ï¿½Ï¶Ô¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½Ê¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ØµÄ¼ï¿½ï¿½Ø²ï¿½ï¿½ï¿½
+	// ï¿½ï¿½ï¿½ï¿½Ê¹ï¿½ï¿½@OneToManyï¿½ï¿½fetchï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ş¸ï¿½Ä¬ï¿½ÏµÄ¼ï¿½ï¿½Ø²ï¿½ï¿½ï¿½
 	@org.junit.Test
 	public void testOneToManyFind() {
 		School school = entityManager.find(School.class, 2);
@@ -137,8 +294,8 @@ public class Test {
 		}
 	}
 
-	// µ¥ÏîÒ»¶Ô¶à¹ØÁª¹ØÏµÖ´ĞĞ±£´æÊ±£¬ Ò»¶¨»á¶à³öUpdateÓï¾ä
-	// ÒòÎªnµÄÒ»µãÔÚ²åÈëÊ±²»»áÍ¬Ê±²åÈëÍâ¼üÁĞ
+	// ï¿½ï¿½ï¿½ï¿½Ò»ï¿½Ô¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ÏµÖ´ï¿½Ğ±ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Updateï¿½ï¿½ï¿½
+	// ï¿½ï¿½Îªnï¿½ï¿½Ò»ï¿½ï¿½ï¿½Ú²ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ï¿½ï¿½Í¬Ê±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 	@org.junit.Test
 	public void testOneToManyPersist() {
 		Set<Student> students = new HashSet<>();
@@ -163,17 +320,17 @@ public class Test {
 
 	@org.junit.Test
 	public void testManyToOneRemove() {
-		// ¿ÉÒÔÉ¾³ınµÄÒ»¶Ë
+		// ï¿½ï¿½ï¿½ï¿½É¾ï¿½ï¿½nï¿½ï¿½Ò»ï¿½ï¿½
 		// Order order = entityManager.find(Order.class, 1);
 		// entityManager.remove(order);
 
-		// ²»ÄÜÖ±½ÓÉ¾³ı1µÄÒ»¶Ë£¬ÒòÎªÓĞÍâ¼üÔ¼Êø
+		// ï¿½ï¿½ï¿½ï¿½Ö±ï¿½ï¿½É¾ï¿½ï¿½1ï¿½ï¿½Ò»ï¿½Ë£ï¿½ï¿½ï¿½Îªï¿½ï¿½ï¿½ï¿½ï¿½Ô¼ï¿½ï¿½
 		Person person = entityManager.find(Person.class, 5);
 		entityManager.remove(person);
 	}
 
-	// Ä¬ÈÏÇé¿öÏÂ£¬Ê¹ÓÃ×óÍâÁ´½ÓµÄ·½Ê½À´»ñÈ¡nµÄÒ»¶ËµÄ¶ÔÏóºÍÆä¹ØÁªµÄ1µÄÒ»¶ËµÄ¶ÔÏó
-	// ¿ÉÒÔÊ¹ÓÃ@ManyToOneµÄfetchÊôĞÔÀ´ĞŞ¸ÄÄ¬ÈÏµÄ¹ØÁªÊôĞÔµÄ¼ÓÔØ²ßÂÔ
+	// Ä¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Â£ï¿½Ê¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ÓµÄ·ï¿½Ê½ï¿½ï¿½ï¿½ï¿½È¡nï¿½ï¿½Ò»ï¿½ËµÄ¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½1ï¿½ï¿½Ò»ï¿½ËµÄ¶ï¿½ï¿½ï¿½
+	// ï¿½ï¿½ï¿½ï¿½Ê¹ï¿½ï¿½@ManyToOneï¿½ï¿½fetchï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ş¸ï¿½Ä¬ï¿½ÏµÄ¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ÔµÄ¼ï¿½ï¿½Ø²ï¿½ï¿½ï¿½
 	@org.junit.Test
 	public void testManyToOneFind() {
 		Order order = entityManager.find(Order.class, 1);
@@ -182,7 +339,7 @@ public class Test {
 	}
 
 	/**
-	 * ±£´æ¶à¶ÔÒ»Ê±£¬½¨ÒéÏÈ±£´æ1µÄÒ»¶Ë£¬È»ºó±£´ænµÄÒ»¶Ë£¬ÕâÑù²»»á¶à³ö¶îÍâµÄUpdateÓï¾ä
+	 * ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»Ê±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È±ï¿½ï¿½ï¿½1ï¿½ï¿½Ò»ï¿½Ë£ï¿½È»ï¿½ó±£´ï¿½nï¿½ï¿½Ò»ï¿½Ë£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Updateï¿½ï¿½ï¿½
 	 */
 	@org.junit.Test
 	public void testManyToOnePersist() {
@@ -190,7 +347,7 @@ public class Test {
 		Order order1 = new Order("food-order", person);
 		Order order2 = new Order("drink-order", person);
 
-		// Ö´ĞĞ±£´æ²Ù×÷
+		// Ö´ï¿½Ğ±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 		entityManager.persist(person);
 		entityManager.persist(order1);
 		entityManager.persist(order2);
@@ -198,28 +355,28 @@ public class Test {
 
 	/*********************************** refresh ******************************/
 	/**
-	 * jpa ÖĞµÄreflush Í¬ hibernate ÖĞ Session µÄ refresh ·½·¨.
+	 * jpa ï¿½Ğµï¿½reflush Í¬ hibernate ï¿½ï¿½ Session ï¿½ï¿½ refresh ï¿½ï¿½ï¿½ï¿½.
 	 * 
-	 * reflush »áÇ¿ÖÆ·¢ËÍsql²éÑ¯£¨select£©Óï¾ä£¬Ê¹»º´æÖĞµÄÊı¾İºÍÊı¾İ¿âÖĞµÄÊı¾İ±£³ÖÒ»ÖÂ£¬Êı¾İÓÉÊı¾İ¿âµ½»º´æ flush
-	 * »áÇ¿ÖÆ·¢ËÍsql¸üĞÂ£¨update£©Óï¾ä£¬Ê¹Êı¾İ¿âÖĞµÄÊı¾İºÍ»º´æÖĞµÄÊı¾İ±£³ÖÒ»ÖÂ£¬Êı¾İÓÉ»º´æµ½Êı¾İ¿â
+	 * reflush ï¿½ï¿½Ç¿ï¿½Æ·ï¿½ï¿½ï¿½sqlï¿½ï¿½Ñ¯ï¿½ï¿½selectï¿½ï¿½ï¿½ï¿½ä£¬Ê¹ï¿½ï¿½ï¿½ï¿½ï¿½Ğµï¿½ï¿½ï¿½ï¿½İºï¿½ï¿½ï¿½ï¿½İ¿ï¿½ï¿½Ğµï¿½ï¿½ï¿½ï¿½İ±ï¿½ï¿½ï¿½Ò»ï¿½Â£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½İ¿âµ½ï¿½ï¿½ï¿½ï¿½ flush
+	 * ï¿½ï¿½Ç¿ï¿½Æ·ï¿½ï¿½ï¿½sqlï¿½ï¿½ï¿½Â£ï¿½updateï¿½ï¿½ï¿½ï¿½ä£¬Ê¹ï¿½ï¿½ï¿½İ¿ï¿½ï¿½Ğµï¿½ï¿½ï¿½ï¿½İºÍ»ï¿½ï¿½ï¿½ï¿½Ğµï¿½ï¿½ï¿½ï¿½İ±ï¿½ï¿½ï¿½Ò»ï¿½Â£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É»ï¿½ï¿½æµ½ï¿½ï¿½ï¿½İ¿ï¿½
 	 * 
-	 * ×¢Òâ£ºµ±¶Ô»º´æÖĞµÄÊı¾İ½øĞĞÒ»ÏµÁĞ²Ù×÷ºó£¬Ò»°ãÌá½»ÊÂÎñÊ±£¬»áµ÷ÓÃflush·½·¨£¬°ÑÊı¾İ¿â¸üĞÂÒ»ÏÂ
-	 * µ«ÔÚcommit»òflushÖ®Ç°µ÷ÓÃreflush£¬ÄÇÃ´»º´æÖĞµÄÊı¾İÓÖ±ä³ÉÁËºÍÊı¾İÖĞµÄÊı¾İÒ»ÑùµÄÁË£¬ÄãÔ­ÏÈĞŞ¸ÄµÄÊı¾İ°×·ÑÁË
+	 * ×¢ï¿½â£ºï¿½ï¿½ï¿½Ô»ï¿½ï¿½ï¿½ï¿½Ğµï¿½ï¿½ï¿½ï¿½İ½ï¿½ï¿½ï¿½Ò»Ïµï¿½Ğ²ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½á½»ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½flushï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½İ¿ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½
+	 * ï¿½ï¿½ï¿½ï¿½commitï¿½ï¿½flushÖ®Ç°ï¿½ï¿½ï¿½ï¿½reflushï¿½ï¿½ï¿½ï¿½Ã´ï¿½ï¿½ï¿½ï¿½ï¿½Ğµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö±ï¿½ï¿½ï¿½Ëºï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ğµï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½Ë£ï¿½ï¿½ï¿½Ô­ï¿½ï¿½ï¿½Ş¸Äµï¿½ï¿½ï¿½ï¿½İ°×·ï¿½ï¿½ï¿½
 	 */
 	@org.junit.Test
 	public void testRefresh() {
 		Person person = entityManager.find(Person.class, 4);
 		person.setLastName("gina");
-		// ·¢ËÍselect½«Êı¾İ¿âÖĞµÄÊı¾İÍ¬²½µ½»º´æÖĞµÄ¶ÔÏó£¬µÈÓÚÉÏÒ»²½²Ù×÷Ã»ÓĞĞŞ¸Ä
+		// ï¿½ï¿½ï¿½ï¿½selectï¿½ï¿½ï¿½ï¿½ï¿½İ¿ï¿½ï¿½Ğµï¿½ï¿½ï¿½ï¿½ï¿½Í¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ĞµÄ¶ï¿½ï¿½ó£¬µï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ã»ï¿½ï¿½ï¿½Ş¸ï¿½
 		entityManager.refresh(person);
 	}
 
 	/************************************ flush *******************************/
 	/**
-	 * jpaÖĞµÄflush Í¬ hibernate ÖĞ Session µÄ flush ·½·¨.
-	 * Ä¬ÈÏÇé¿öÏÂ£¬ÔÚÌá½»ÊÂÎñµÄÊ±ºò»áË¢ĞÂ»º´æ£¨¼´µ÷ÓÃflush·½·¨£©
+	 * jpaï¿½Ğµï¿½flush Í¬ hibernate ï¿½ï¿½ Session ï¿½ï¿½ flush ï¿½ï¿½ï¿½ï¿½.
+	 * Ä¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Â£ï¿½ï¿½ï¿½ï¿½á½»ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ï¿½Ë¢ï¿½Â»ï¿½ï¿½æ£¨ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½flushï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 	 * 
-	 * ÊÖ¶¯µ÷ÓÃ£¬»áÁ¢¿ÌÇ¿ÖÆ·¢ËÍsql¸üĞÂ£¨update£©Óï¾ä£¬Ê¹Êı¾İ¿âÖĞµÄÊı¾İºÍ»º´æÖĞµÄÊı¾İ±£³ÖÒ»ÖÂ µ«Êı¾İ¿âÖĞµÄ¼ÇÂ¼»¹Ã»ÓĞ±ä£¬ÒòÎª»¹Ã»ÓĞÌá½»ÊÂÎñ
+	 * ï¿½Ö¶ï¿½ï¿½ï¿½ï¿½Ã£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç¿ï¿½Æ·ï¿½ï¿½ï¿½sqlï¿½ï¿½ï¿½Â£ï¿½updateï¿½ï¿½ï¿½ï¿½ä£¬Ê¹ï¿½ï¿½ï¿½İ¿ï¿½ï¿½Ğµï¿½ï¿½ï¿½ï¿½İºÍ»ï¿½ï¿½ï¿½ï¿½Ğµï¿½ï¿½ï¿½ï¿½İ±ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½İ¿ï¿½ï¿½ĞµÄ¼ï¿½Â¼ï¿½ï¿½Ã»ï¿½Ğ±ä£¬ï¿½ï¿½Îªï¿½ï¿½Ã»ï¿½ï¿½ï¿½á½»ï¿½ï¿½ï¿½ï¿½
 	 * 
 	 */
 	@org.junit.Test
@@ -232,28 +389,27 @@ public class Test {
 	/***************************** merge ****************************************/
 
 	/*
-	 * ×ÜµÄÀ´Ëµ£ºÀàËÆÓÚhibernateÖĞSessionµÄsaveOrUpdate·½·¨
+	 * ï¿½Üµï¿½ï¿½ï¿½Ëµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½hibernateï¿½ï¿½Sessionï¿½ï¿½saveOrUpdateï¿½ï¿½ï¿½ï¿½
 	 * 
 	 */
 
-	// Èô´«ÈëµÄÊÇÒ»¸öÓÎÀë¶ÔÏó£¬ ¼´´«ÈëµÄ¶ÔÏóÓÉOID
-	// 1. ÈôÔÚEntityManager»º´æÖĞÓĞ¶ÔÏó
-	// 2. JPA»á°ÑÓÎÀë¶ÔÏóÊôĞÔ¸´ÖÆµ½²éÑ¯µ½µÄEntityManager»º´æµÄ¶ÔÏóÖĞ¡£
-	// 3. ¶ÔEntityManager»º´æÖĞµÄ¶ÔÏó½øĞĞUpdate
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¶ï¿½ï¿½ï¿½ï¿½ï¿½OID
+	// 1. ï¿½ï¿½ï¿½ï¿½EntityManagerï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ğ¶ï¿½ï¿½ï¿½
+	// 2. JPAï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ô¸ï¿½ï¿½Æµï¿½ï¿½ï¿½Ñ¯ï¿½ï¿½ï¿½ï¿½EntityManagerï¿½ï¿½ï¿½ï¿½Ä¶ï¿½ï¿½ï¿½ï¿½Ğ¡ï¿½
+	// 3. ï¿½ï¿½EntityManagerï¿½ï¿½ï¿½ï¿½ï¿½ĞµÄ¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Update
 	@org.junit.Test
 	public void testMerge4() {
 		Person person = new Person("aaa", 33, "aaa@gmail.com", new Date(), new Date());
 		person.setId(4);
 
-		Person person2 = entityManager.find(Person.class, 1);
 		entityManager.merge(person);
 	}
 
-	// Èô´«ÈëµÄÊÇÒ»¸öÓÎÀë¶ÔÏó£¬ ¼´´«ÈëµÄ¶ÔÏóÓÉOID
-	// 1. ÈôÔÚEntityManager»º´æÖĞÃ»ÓĞ¶ÔÏó
-	// 2. ÈôÔÚÊı¾İ¿âÖĞÒ²ÓĞ¶ÔÓ¦µÄ¼ÇÂ¼
-	// 3. JPA»á²éÑ¯¶ÔÓ¦µÄ¼ÇÂ¼£¬È»ºó·µ»Ø¼ÇÂ¼¶ÔÓ¦µÄ¶ÔÏó£¬ È»ºóÔÙ°ÑÓÎÀë¶ÔÏóµÄÊôĞÔ¸´ÖÆµ½²éÑ¯µ½µÄ¶ÔÏóÖĞ¡£
-	// 4. ¶Ô²éÑ¯µ½µÄ¶ÔÏóÖ´ĞĞupdate²Ù×÷
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¶ï¿½ï¿½ï¿½ï¿½ï¿½OID
+	// 1. ï¿½ï¿½ï¿½ï¿½EntityManagerï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ã»ï¿½Ğ¶ï¿½ï¿½ï¿½
+	// 2. ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½İ¿ï¿½ï¿½ï¿½Ò²ï¿½Ğ¶ï¿½Ó¦ï¿½Ä¼ï¿½Â¼
+	// 3. JPAï¿½ï¿½ï¿½Ñ¯ï¿½ï¿½Ó¦ï¿½Ä¼ï¿½Â¼ï¿½ï¿½È»ï¿½ó·µ»Ø¼ï¿½Â¼ï¿½ï¿½Ó¦ï¿½Ä¶ï¿½ï¿½ï¿½ È»ï¿½ï¿½ï¿½Ù°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ô¸ï¿½ï¿½Æµï¿½ï¿½ï¿½Ñ¯ï¿½ï¿½ï¿½Ä¶ï¿½ï¿½ï¿½ï¿½Ğ¡ï¿½
+	// 4. ï¿½Ô²ï¿½Ñ¯ï¿½ï¿½ï¿½Ä¶ï¿½ï¿½ï¿½Ö´ï¿½ï¿½updateï¿½ï¿½ï¿½ï¿½
 	@org.junit.Test
 	public void testMerge3() {
 		Person person = new Person("kobe", 33, "kobe@gmail.com", new Date(), new Date());
@@ -265,11 +421,11 @@ public class Test {
 		System.out.println(person == person2);
 	}
 
-	// Èô´«ÈëµÄÊÇÒ»¸öÓÎÀë¶ÔÏó£¬ ¼´´«ÈëµÄ¶ÔÏóÓÉOID
-	// 1. ÈôÔÚEntityManager»º´æÖĞÃ»ÓĞ¶ÔÏó
-	// 2. ÈôÔÚÊı¾İ¿âÖĞÒ²Ã»ÓĞ¶ÔÓ¦µÄ¼ÇÂ¼
-	// 3. JPA»á´´½¨Ò»¸öĞÂµÄ¶ÔÏó£¬ È»ºó°Ñµ±Ç°ÓÎÀë¶ÔÏóµÄÊôĞÔ¸´ÖÆµ½ĞÂµÄ¶ÔÏóÖĞ
-	// 4. ¶ÔĞÂ´´½¨µÄ¶ÔÏóÖ´ĞĞinsert ²Ù×÷
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¶ï¿½ï¿½ï¿½ï¿½ï¿½OID
+	// 1. ï¿½ï¿½ï¿½ï¿½EntityManagerï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ã»ï¿½Ğ¶ï¿½ï¿½ï¿½
+	// 2. ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½İ¿ï¿½ï¿½ï¿½Ò²Ã»ï¿½Ğ¶ï¿½Ó¦ï¿½Ä¼ï¿½Â¼
+	// 3. JPAï¿½á´´ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ÂµÄ¶ï¿½ï¿½ï¿½ È»ï¿½ï¿½Ñµï¿½Ç°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ô¸ï¿½ï¿½Æµï¿½ï¿½ÂµÄ¶ï¿½ï¿½ï¿½ï¿½ï¿½
+	// 4. ï¿½ï¿½ï¿½Â´ï¿½ï¿½ï¿½ï¿½Ä¶ï¿½ï¿½ï¿½Ö´ï¿½ï¿½insert ï¿½ï¿½ï¿½ï¿½
 	@org.junit.Test
 	public void testMerge2() {
 		Person person = new Person("tomas", 33, "tomas@gmail.com", new Date(), new Date());
@@ -280,8 +436,8 @@ public class Test {
 		System.out.println("person2#id" + person2.getId());
 	}
 
-	// 1. Èô´«ÈëµÄÊÇÒ»¸öÁÙÊ±¶ÔÏó
-	// »á´´½¨Ò»¸öĞÂµÄ¶ÔÏó£¬ »á°ÑÁÙÊ±¶ÔÏóµÄÊôĞÔ¸´ÖÆµ½ĞÂµÄ¶ÔÏóÖĞ£¬ È»ºó¶ÔĞÂµÄ¶ÔÏóÖ´ĞĞ³Ö¾Ã»¯²Ù×÷£¬ËùÒÔĞÂµÄ¶ÔÏóÖĞÓĞid£¬ÒÔÇ°µÄÁÙÊ±¶ÔÏóÖĞÃ»ÓĞid
+	// 1. ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ï¿½ï¿½
+	// ï¿½á´´ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ÂµÄ¶ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ô¸ï¿½ï¿½Æµï¿½ï¿½ÂµÄ¶ï¿½ï¿½ï¿½ï¿½Ğ£ï¿½ È»ï¿½ï¿½ï¿½ï¿½ÂµÄ¶ï¿½ï¿½ï¿½Ö´ï¿½Ğ³Ö¾Ã»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ÂµÄ¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½idï¿½ï¿½ï¿½ï¿½Ç°ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ã»ï¿½ï¿½id
 	@org.junit.Test
 	public void testMerge1() {
 		Person person = new Person("smith", 22, "smith@gmail.com", new Date(), new Date());
@@ -291,8 +447,8 @@ public class Test {
 	}
 
 	/***************************** remove ****************************************/
-	// ÀàËÆÓÚhibernateµÄdelete·½·¨£¬°Ñ¶ÔÏó¶ÔÓ¦µÄ¼ÇÂ¼´ÓÊı¾İ¿âÖĞÒÆ³ı
-	// ×¢Òâ£º¸Ã·½·¨Ö»ÄÜÒÆ³ı³Ö¾Ã»¯¶ÔÏó£¬¶øhibernateµÄdelete»¹¿ÉÒÔÒÆ³ıÓÎÀë¶ÔÏó¡£
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½hibernateï¿½ï¿½deleteï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ñ¶ï¿½ï¿½ï¿½ï¿½Ó¦ï¿½Ä¼ï¿½Â¼ï¿½ï¿½ï¿½ï¿½ï¿½İ¿ï¿½ï¿½ï¿½ï¿½Æ³ï¿½
+	// ×¢ï¿½â£ºï¿½Ã·ï¿½ï¿½ï¿½Ö»ï¿½ï¿½ï¿½Æ³ï¿½ï¿½Ö¾Ã»ï¿½ï¿½ï¿½ï¿½ó£¬¶ï¿½hibernateï¿½ï¿½deleteï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 	@org.junit.Test
 	public void testRemove() {
 		// Person person = new Person();
@@ -305,8 +461,8 @@ public class Test {
 	}
 
 	/***************************** persist ****************************************/
-	// ÀàËÆÓÚhibernateÀàµÄsave·½·¨£¬ Ê¹¶ÔÏóÓÉÁÙÊ±×´Ì¬±äÎª³Ö¾Ã»¯×´Ì¬
-	// ºÍhibernateµÄsave·½·¨µÄ²»Í¬Ö®´¦£º Èô¶ÔÏóÓÉid£¬Ôò²»ÄÜÖ´ĞĞinsert²Ù×÷£¬¶ø»áÅ×³öÒì³£¡£
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½hibernateï¿½ï¿½ï¿½saveï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Ê¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê±×´Ì¬ï¿½ï¿½Îªï¿½Ö¾Ã»ï¿½×´Ì¬
+	// ï¿½ï¿½hibernateï¿½ï¿½saveï¿½ï¿½ï¿½ï¿½ï¿½Ä²ï¿½Í¬Ö®ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½idï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö´ï¿½ï¿½insertï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×³ï¿½ï¿½ì³£ï¿½ï¿½
 	@org.junit.Test
 	public void testPersistence() {
 		Person person = new Person("john", 22, "aa@email.com", new Date(), new Date());
@@ -316,7 +472,7 @@ public class Test {
 	}
 
 	/***************************** getReference ****************************************/
-	// ÀàËÆÓÚhibernateÖĞsessionµÄload·½·¨
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½hibernateï¿½ï¿½sessionï¿½ï¿½loadï¿½ï¿½ï¿½ï¿½
 	@org.junit.Test
 	public void testGetReference() {
 		Person person = entityManager.getReference(Person.class, 1);
