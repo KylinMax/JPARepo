@@ -19,6 +19,9 @@
 		
 		<class>com.kylin.jpa.entities.Item</class>
 		<class>com.kylin.jpa.entities.Category</class>
+		
+		<!-- 配置二级缓存的策略 -->
+		<shared-cache-mode>ENABLE_SELECTIVE</shared-cache-mode>
 		<properties>
 			<!-- 配置数据库的连接信息 -->
 			<property name="javax.persistence.jdbc.driver" value="com.mysql.jdbc.Driver" />
@@ -30,6 +33,11 @@
 			<property name="hibernate.format_sql" value="true" />
 			<property name="hibernate.show_sql" value="true" />
 			<property name="hibernate.hbm2ddl.auto" value="update" />
+			
+			<!-- 二级缓存相关 -->
+			<property name="hibernate.cache.use_second_level_cache" value="true"></property>
+			<property name="hibernate.cache.region.factory_class" value="org.hibernate.cache.ehcache.EhCacheRegionFactory"></property>
+			<property name="hibernate.cache.use_query_cache" value="true"/>
 		</properties>
 	</persistence-unit>
 </persistence>

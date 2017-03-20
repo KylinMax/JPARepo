@@ -1,4 +1,4 @@
-package com.kylin.jap.Test;
+package com.kylin.jpa.Test;
 
 import java.util.Date;
 import java.util.HashSet;
@@ -52,154 +52,168 @@ public class Test {
 		// 7.�ر�EntityManagerFactory
 		entityManagerFactory.close();
 	}
-	
-	
-	/*******************JPQL**************************************/
-	
+
+	/******************* JPQL **************************************/
+
 	@org.junit.Test
-	public void testUpdate(){
+	public void testUpdate() {
 		String jpql = "update Student s set s.name = ? where s.id = ?";
 		Query query = entityManager.createQuery(jpql).setParameter(1, "kylinxiang").setParameter(2, 1);
 		query.executeUpdate();
 	}
-	
+
 	@org.junit.Test
-	public void testSubQuery(){
+	public void testSubQuery() {
 		String jpql = "select s from Student s where s.school = (select sc from School sc where sc.schoolName = ?)";
 		Query query = entityManager.createQuery(jpql);
 		query.setParameter(1, "singhua");
 		List<Student> students = query.getResultList();
-		for(Student student : students){
+		for (Student student : students) {
 			System.out.println(student);
 		}
 	}
-	
+
 	@org.junit.Test
-	public void testLeftOuterJoinFetch(){
-		//不使用left outer join fetch
-		//查询两次， 一次查询order， 一次查村 perosn
-		
-//		String jpql = "select o from Order o where o.id = 1";
-		
-		//使用left outer join fetch 查询 只查询一次
+	public void testLeftOuterJoinFetch() {
+		// 不使用left outer join fetch
+		// 查询两次， 一次查询order， 一次查村 perosn
+
+		// String jpql = "select o from Order o where o.id = 1";
+
+		// 使用left outer join fetch 查询 只查询一次
 		String jpql = "select o from Order o left outer join fetch o.person where o.id = 1";
 
 		Order order = (Order) entityManager.createQuery(jpql).getSingleResult();
 		System.out.println(order.getOrderName());
 		System.out.println(order.getPerson());
-		
-		//若加fetch 将会返回查询结果的数组的list
+
+		// 若加fetch 将会返回查询结果的数组的list
 		String jpql2 = "select o from Order o left outer join o.person where o.id = 1";
 		List<Object[]> results = entityManager.createQuery(jpql2).getResultList();
 		System.out.println(results);
 	}
-	
-	//查询order数量大于2的那些Person
+
+	// 查询order数量大于2的那些Person
 	@org.junit.Test
-	public void testOrderBy(){
+	public void testOrderBy() {
 		String jpql = "select o.person from Order o group by o.person having count(o.id) >=2";
 		List<Person> persons = entityManager.createQuery(jpql).getResultList();
 		System.out.println(persons);
 	}
-	
-	//启用hibernate查询缓存
+
+	// 启用hibernate查询缓存
 	@org.junit.Test
-	public void testQueryCache(){
+	public void testQueryCache() {
 		String jpql = "select s from Student s";
-		Query query = entityManager.createQuery(jpql).setHint(QueryHints.HINT_CACHEABLE,true);
-		
-		List<Student> students =query.getResultList();
+		Query query = entityManager.createQuery(jpql).setHint(QueryHints.HINT_CACHEABLE, true);
+
+		List<Student> students = query.getResultList();
 		System.out.println(students.size());
-		
-		//再次查询
+
+		// 再次查询
 		query = entityManager.createQuery(jpql).setHint(QueryHints.HINT_CACHEABLE, true);
-		students =query.getResultList();
+		students = query.getResultList();
 		System.out.println(students.size());
 	}
-	
-	//createNativeQuery适用于本地sql
+
+	// createNativeQuery适用于本地sql
 	@org.junit.Test
-	public void testNativeQuery(){
-		 String sql = "select age from student";
-		 List<Integer> integers = entityManager.createNativeQuery(sql).getResultList();
-		 for (Integer integer : integers) {
+	public void testNativeQuery() {
+		String sql = "select age from student";
+		List<Integer> integers = entityManager.createNativeQuery(sql).getResultList();
+		for (Integer integer : integers) {
 			System.out.println(integer);
 		}
 	}
-	
-	//createNamedQuery适用于实体类前使用@NamedQuery标记的查询语句
+
+	// createNamedQuery适用于实体类前使用@NamedQuery标记的查询语句
 	@org.junit.Test
-	public void testNamedQuery(){
+	public void testNamedQuery() {
 		List<Student> students = entityManager.createNamedQuery("testNamedQuery").getResultList();
 		System.out.println(students);
 	}
-	
-	//默认情况下， 若只查询部分属性， 则返回Object[]类型的结果，或者Object[]类型的List.
-	//也可以在实体类中创建对应的构造器，然后在JPQL语句中利用对应的构造器返回实体类的对象.
+
+	// 默认情况下， 若只查询部分属性， 则返回Object[]类型的结果，或者Object[]类型的List.
+	// 也可以在实体类中创建对应的构造器，然后在JPQL语句中利用对应的构造器返回实体类的对象.
 	@org.junit.Test
-	public void testAttributeQuery(){
-		String jpql ="select new Student(s.name, s.age) from Student s where s.age > ?";
+	public void testAttributeQuery() {
+		String jpql = "select new Student(s.name, s.age) from Student s where s.age > ?";
 		List<Student> result = entityManager.createQuery(jpql).setParameter(1, 1).getResultList();
 		System.out.println(result);
 	}
-	
-	
-	
+
 	@org.junit.Test
-	public void testHelloJPQL(){
-		//Student为类名，首字母大写
+	public void testHelloJPQL() {
+		// Student为类名，首字母大写
 		String jpql = "From Student s where s.age>?";
 		Query query = entityManager.createQuery(jpql);
-		
-		//占位符的索引从1开始
+
+		// 占位符的索引从1开始
 		query.setParameter(1, 1);
 		List<Student> students = query.getResultList();
 		Iterator<Student> iterator = students.iterator();
-		while(iterator.hasNext()){
+		while (iterator.hasNext()) {
 			System.out.println(iterator.next().toString2());
 		}
-		
+
 	}
-	/********************many2many*********************************/
-	
-	
-	//对于关联的集合对象，默认使用懒加载的策略
-	//不管是使用哪一方获取，发送的sql语句相同
+
 	@org.junit.Test
-	public void testManyToManyFind(){
+	public void testSecondLevelCache() {
+		Student student = entityManager.find(Student.class, 1);
+		System.out.println(student);
+		
+		transaction.commit();
+		entityManager.close();
+		
+		entityManager = entityManagerFactory.createEntityManager();
+		transaction = entityManager.getTransaction();
+		transaction.begin();
+		
+		Student student2 = entityManager.find(Student.class, 1);
+		System.out.println(student2);
+
+	}
+
+	/******************** many2many *********************************/
+
+	// 对于关联的集合对象，默认使用懒加载的策略
+	// 不管是使用哪一方获取，发送的sql语句相同
+	@org.junit.Test
+	public void testManyToManyFind() {
 		Item item = entityManager.find(Item.class, 1);
 		System.out.println(item.getItemName());
 		System.out.println(item.getCategories().size());
 	}
-	
+
 	@org.junit.Test
-	public void testManyToManyPersit(){
+	public void testManyToManyPersit() {
 		Item item1 = new Item();
 		item1.setItemName("i1");
-		
+
 		Item item2 = new Item();
 		item2.setItemName("i2");
-		
+
 		Category category1 = new Category();
 		category1.setCatagoryName("c1");
-		
+
 		Category category2 = new Category();
 		category2.setCatagoryName("c2");
-		
-		//设置关联关系
+
+		// 设置关联关系
 		item1.getCategories().add(category1);
 		item1.getCategories().add(category2);
-		
+
 		item2.getCategories().add(category1);
 		item2.getCategories().add(category2);
-		
+
 		category1.getItems().add(item1);
 		category1.getItems().add(item2);
-		
+
 		category2.getItems().add(item1);
 		category2.getItems().add(item2);
-		
-		//保存
+
+		// 保存
 		entityManager.persist(item1);
 		entityManager.persist(item2);
 		entityManager.persist(category1);
@@ -209,7 +223,7 @@ public class Test {
 	/******************** one2one ********************************/
 
 	// Ĭ������£�����ȡ��ά��������ϵ��һ�������ͨ���������ӻ�ȡ��������
-	//����ͨ��@OneToOne��fetch�������޸ļ��ܲ��ԣ�����Ȼ���ٷ���SQL�������ʼ��������Ķ���
+	// ����ͨ��@OneToOne��fetch�������޸ļ��ܲ��ԣ�����Ȼ���ٷ���SQL�������ʼ��������Ķ���
 	// ˵���ڲ�ά��������ϵ��һ���� �������޸�fetch����
 	@org.junit.Test
 	public void testOne2OneFind2() {
@@ -247,7 +261,8 @@ public class Test {
 	// ����˫��1�Զ�Ĺ�����ϵ�� ִ�б���ʱ
 	// ���ȱ���n��һ�ˣ� �ڱ���1��һ�ˣ� Ĭ������£� ����n��Update���
 	// ���ȱ���1��һ�ˣ� �ٱ�����һ�ˣ� �����n��Update���
-	// �ڽ���˫��1�Զ������ϵʱ�� ����ʹ�ö��һ����ά��������ϵ�� ��1��һ����ά��������ϵ����������Ч����sql���
+	// �ڽ���˫��1�Զ������ϵʱ�� ����ʹ�ö��һ����ά��������ϵ��
+	// ��1��һ����ά��������ϵ����������Ч����sql���
 
 	@org.junit.Test
 	public void testBiDirectionalOneToMany() {
@@ -357,7 +372,9 @@ public class Test {
 	/**
 	 * jpa �е�reflush ͬ hibernate �� Session �� refresh ����.
 	 * 
-	 * reflush ��ǿ�Ʒ���sql��ѯ��select����䣬ʹ�����е����ݺ����ݿ��е����ݱ���һ�£����������ݿ⵽���� flush
+	 * reflush
+	 * ��ǿ�Ʒ���sql��ѯ��select����䣬ʹ�����е����ݺ����ݿ��е����ݱ���һ�£����������ݿ⵽����
+	 * flush
 	 * ��ǿ�Ʒ���sql���£�update����䣬ʹ���ݿ��е����ݺͻ����е����ݱ���һ�£������ɻ��浽���ݿ�
 	 * 
 	 * ע�⣺���Ի����е����ݽ���һϵ�в�����һ���ύ����ʱ�������flush�����������ݿ����һ��
@@ -376,7 +393,8 @@ public class Test {
 	 * jpa�е�flush ͬ hibernate �� Session �� flush ����.
 	 * Ĭ������£����ύ�����ʱ���ˢ�»��棨������flush������
 	 * 
-	 * �ֶ����ã�������ǿ�Ʒ���sql���£�update����䣬ʹ���ݿ��е����ݺͻ����е����ݱ���һ�� �����ݿ��еļ�¼��û�б䣬��Ϊ��û���ύ����
+	 * �ֶ����ã�������ǿ�Ʒ���sql���£�update����䣬ʹ���ݿ��е����ݺͻ����е����ݱ���һ��
+	 * �����ݿ��еļ�¼��û�б䣬��Ϊ��û���ύ����
 	 * 
 	 */
 	@org.junit.Test
@@ -437,7 +455,8 @@ public class Test {
 	}
 
 	// 1. ���������һ����ʱ����
-	// �ᴴ��һ���µĶ��� �����ʱ��������Ը��Ƶ��µĶ����У� Ȼ����µĶ���ִ�г־û������������µĶ�������id����ǰ����ʱ������û��id
+	// �ᴴ��һ���µĶ��� �����ʱ��������Ը��Ƶ��µĶ����У�
+	// Ȼ����µĶ���ִ�г־û������������µĶ�������id����ǰ����ʱ������û��id
 	@org.junit.Test
 	public void testMerge1() {
 		Person person = new Person("smith", 22, "smith@gmail.com", new Date(), new Date());
